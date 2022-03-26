@@ -62,14 +62,6 @@ int main(int argc, char *argv[]){
         target_addr.sin_port = htons(ports[i]);
         target_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         memset(&(target_addr.sin_zero), '\0', 8); 
-<<<<<<< HEAD
-        while(connect(sendfd,(struct sockaddr *)&target_addr, sizeof(struct sockaddr)) < 0){}
-        //get unique ID 
-        cout<<"Connected to "<<nos[i]<<" with unique-ID "<<123<<" on port "<<ports[i]<<endl;
-    }
-
-    if(listen(recfd,20)) exit(0);
-=======
         while(connect(sendfd[i],(struct sockaddr *)&target_addr, sizeof(struct sockaddr)) < 0){}
         FD_SET(sendfd[i], &master);
         fdmax=max(fdmax,sendfd[i]);
@@ -116,5 +108,4 @@ int main(int argc, char *argv[]){
         }
     }
 
->>>>>>> 1034840b7d3cb7751419c5c0c158bac559555217
 }
