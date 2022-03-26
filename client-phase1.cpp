@@ -6,7 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <arpa/inet.h>
-#include<dirent.h>
+#include <dirent.h>
 using namespace std;
 
 int main(int argc, char *argv[]){
@@ -61,8 +61,10 @@ int main(int argc, char *argv[]){
         target_addr.sin_port = htons(ports[i]);
         target_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         memset(&(target_addr.sin_zero), '\0', 8); 
-        while(connect(sendfd,(struct sockaddr *)&target_addr, sizeof(struct sockaddr)) <= 0){}
+        while(connect(sendfd,(struct sockaddr *)&target_addr, sizeof(struct sockaddr)) < 0){}
         //get unique ID 
         cout<<"Connected to "<<nos[i]<<" with unique-ID "<<123<<" on port "<<ports[i]<<endl;
     }
+
+    if(listen(recfd,20)) exit(0);
 }
