@@ -74,7 +74,6 @@ int main(int argc, char *argv[]){
         }
         for(int i=0;i<=fdmax;i++){
             if (FD_ISSET(i,&read_fds)){
-                // cout<<i<<endl;
                 if (i==recfd){
                     int sin_size=sizeof(struct sockaddr_in);
                     neighfd=accept(recfd,(struct sockaddr *)&neigh_addr, (socklen_t*)&sin_size);
@@ -84,6 +83,7 @@ int main(int argc, char *argv[]){
                         nbytes=send(neighfd, to_string(id).c_str(), strlen(to_string(id).c_str()), 0);
                         if(nbytes<= 0){
                             if (nbytes == 0) {
+                                FD_CLR(i,&master);
                                 printf("selectserver: socket %d hung up\n", i);
                                 shutdown(neighfd,2);
                             } else {
@@ -97,6 +97,7 @@ int main(int argc, char *argv[]){
                     // cout<<"here\n";
                     nbytes=recv(i, buf, sizeof(buf), 0);
                     if (nbytes == 0) {
+                        FD_CLR(i,&master);
                         printf("selectserver: socket %d hung up\n", i);
                         shutdown(i,2);
                     }else if(nbytes<0){
