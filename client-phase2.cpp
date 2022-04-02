@@ -1,7 +1,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <string.h>
+#include <string>
 #include <cstdio>
 #include <iostream>
 #include <fstream>
@@ -9,7 +9,7 @@
 #include <dirent.h>
 #include <bits/stdc++.h>
 int INTMAX=1000000007;
-
+#define vi vector<int>
 void send_response(){
 
 }
@@ -110,21 +110,22 @@ int main(int argc, char *argv[]){
                         if(nbytes<= 0){
                             if (nbytes == 0) {
                                 printf("selectserver: socket %d hung up\n", i);
+                                FD_CLR(i,&master);
                                 shutdown(neighfd,2);
                             } else {
                                 perror("send");
                             }
                         }
                         for(auto f: files){
-                            string filename='$'+f;
-                            n_bytes=send(neighfd, to_string(filename).c_str(), strlen(to_string(filename).c_str()), 0);
+                            string filename='$'+to_string(f);
+                            n_bytes=send(neighfd, filename.c_str(), strlen(filename.c_str()), 0);
                         }
                     }
                 }else{
-                    // cout<<"here\n";
                     nbytes=recv(i, buf, sizeof(buf), 0);
                     if (nbytes == 0) {
                         printf("selectserver: socket %d hung up\n", i);
+                        FD_CLR(i,&master);
                         shutdown(i,2);
                     }
                     else if(nbytes<0){
@@ -136,7 +137,7 @@ int main(int argc, char *argv[]){
                             s.erase(0,1);
                             if(myfiles.count(s)==1){
                                 string ye='#'+s;
-                                n_bytes=send(i, to_string(ye).c_str(), strlen(to_string(ye).c_str()), 0);
+                                n_bytes=send(i, ye.c_str(), strlen(ye.c_str()), 0);
                             }
                         }
 
@@ -146,7 +147,8 @@ int main(int argc, char *argv[]){
                         }
 
                         else{
-                            cout<<"Connected to " <<nos_map[i]<< " with unique-ID "<<s<<" on port "<<port_map[i]<<"\n";
+                            int x=stoi(s);
+                            cout<<"Connected to " <<nos_map[i]<< " with unique-ID "<<x<<" on port "<<port_map[i]<<"\n";
                             connects.insert(s);
                             if(connects.size()>=nbrs) break;
                         }
@@ -155,7 +157,7 @@ int main(int argc, char *argv[]){
             }
         }
     }
-    for (auto *it=filemap.begin(); it!=filemap.end();it++){
+    for (auto it=filemap.begin(); it!=filemap.end();it++){
         if(it->second==INTMAX) cout<<"Found "<<it->first<<" at 0 with MD5 0 at depth 0"<<endl;
         else cout<<"Found "<<it->first<<" at "<<it->second<<" with MD5 0 at depth 1"<<endl;
     }
