@@ -8,13 +8,10 @@
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <bits/stdc++.h>
+// #include <thread>
 int INTMAX=1000000007;
-#define vi vector<int>
-void send_response(){
-
-}
-
 using namespace std;
+
 
 int main(int argc, char *argv[]){
     int sno,id,myport,nbrs;
@@ -26,11 +23,10 @@ int main(int argc, char *argv[]){
         cin>>nos[i]>>ports[i];
     }
     int nfiles; cin>>nfiles;
-    vi files(nfiles);
+    vector<string> files(nfiles);
     for(int i=0;i<nfiles;i++){
         cin>>files[i];
     }
-
     set <string> myfiles;
     set <string> connects;
     DIR *pDIR;
@@ -64,6 +60,7 @@ int main(int argc, char *argv[]){
         exit(0); 
     }
     int sendfd[nbrs];
+    vector<int> recfds;
     fd_set master,read_fds;
     int fdmax,nbytes,n_bytes;
     //change buffer size
@@ -74,8 +71,11 @@ int main(int argc, char *argv[]){
     fdmax = recfd;
     map <int,int> nos_map;
     map <int, int> port_map;
+    map <int, int> i_map;
     map <string, int> filemap;
-    for(auto f: myfiles){
+    map <string, int> pendingmap;
+    map <int,int> IDs;
+    for(auto f: files){
         filemap[f]=INTMAX;
     }
     for(int i=0;i<nbrs;i++){
@@ -89,9 +89,11 @@ int main(int argc, char *argv[]){
         FD_SET(sendfd[i], &master);
         port_map[sendfd[i]]=ports[i];
         nos_map[sendfd[i]]=nos[i];
+        i_map[sendfd[i]]=i;
         fdmax=max(fdmax,sendfd[i]);
     }
-    int count=0;
+    int count=nbrs;
+    bool tick=0;
     for(;;){
         read_fds=master;
         if(select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1){
@@ -106,25 +108,24 @@ int main(int argc, char *argv[]){
                     if(neighfd==-1){
                         perror("accept");
                     }else{
-                        nbytes=send(neighfd, to_string(id).c_str(), strlen(to_string(id).c_str()), 0);
+                        FD_SET(neighfd, &master);
+                        fdmax=max(fdmax,neighfd);
+                        recfds.push_back(neighfd);
+                        nbytes=send(neighfd, ("&"+to_string(id)).c_str(), strlen(("&"+to_string(id)).c_str()), 0);
                         if(nbytes<= 0){
                             if (nbytes == 0) {
-                                printf("selectserver: socket %d hung up\n", i);
+                                // printf("selectserver: socket %d hung up\n", i);
                                 FD_CLR(i,&master);
                                 shutdown(neighfd,2);
                             } else {
                                 perror("send");
                             }
                         }
-                        for(auto f: files){
-                            string filename='$'+to_string(f);
-                            n_bytes=send(neighfd, filename.c_str(), strlen(filename.c_str()), 0);
-                        }
                     }
                 }else{
                     nbytes=recv(i, buf, sizeof(buf), 0);
                     if (nbytes == 0) {
-                        printf("selectserver: socket %d hung up\n", i);
+                        // printf("selectserver: socket %d hung up\n", i);
                         FD_CLR(i,&master);
                         shutdown(i,2);
                     }
@@ -133,26 +134,131 @@ int main(int argc, char *argv[]){
                     }
                     else{ 
                         string s=buf;
-                        if(s[0]=='$'){
+                        memset( buf, '\0', sizeof(char)*256 );
+                        if(s[0]=='&'){
+                            // cout<<s<<endl;
                             s.erase(0,1);
-                            if(myfiles.count(s)==1){
-                                string ye='#'+s;
-                                n_bytes=send(i, ye.c_str(), strlen(ye.c_str()), 0);
-                            }
-                        }
-
-                        if(s[0]=='#'){
-                            s.erase(0,1);
-                            filemap[s]=min(filemap[s],i);
-                        }
-
-                        else{
                             int x=stoi(s);
+                            IDs[i]=x;
                             cout<<"Connected to " <<nos_map[i]<< " with unique-ID "<<x<<" on port "<<port_map[i]<<"\n";
                             connects.insert(s);
-                            if(connects.size()>=nbrs) break;
+                            if(connects.size()>=nbrs){
+                                break;
+                            }
+                        }else{
+                            s.erase(0,1);
+                            pendingmap[s]=i;
                         }
                     }
+                }
+            }
+        }
+        if(connects.size()>=nbrs) break;
+    }
+    // cout<<"here\n";
+    memset( buf, '\0', sizeof(char)*256 );
+    int crntfile=0;
+    count=nbrs;
+    for(int i=0;i<nbrs;i++){
+        string filename='$'+files[0];
+        n_bytes=send(sendfd[i], filename.c_str(), strlen(filename.c_str()), 0);
+        // cout<<n_bytes<<endl;
+    }
+    int confirm=0;
+    for (auto it=pendingmap.begin(); it!=pendingmap.end();it++){
+        string s=it->first;
+        int soc=it->second;
+        if(myfiles.count(s)==1){
+            string ye='#'+s;
+            n_bytes=send(soc, ye.c_str(), strlen(ye.c_str()), 0);
+            cout<<n_bytes<<endl;
+        }else{
+            string ye="%"+s;
+            n_bytes=send(soc, ye.c_str(), strlen(ye.c_str()), 0);
+        }
+    }
+    FD_CLR(recfd,&master);
+    for(;;){
+        read_fds=master;
+        if(select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1){
+            perror("select");
+            exit(1);
+        }
+        for(int i=0;i<=fdmax;i++){
+            if (FD_ISSET(i,&read_fds)){
+                // cout<<i<<" ";
+                nbytes=recv(i, buf, sizeof(buf), 0);
+                // cout<<buf<<endl;
+                if (nbytes == 0) {
+                    // printf("selectserver: socket %d hung up\n", i);
+                    FD_CLR(i,&master);
+                    shutdown(i,2);
+                }
+                else if(nbytes<0){
+                    perror("recv");
+                }
+                else{ 
+                    string s=buf;
+                    // cout<<s<<endl;
+                    memset( buf, '\0', sizeof(char)*256 );
+                    if(s[0]=='$'){
+                        // cout<<s<<endl;
+                        s.erase(0,1);
+                        if(myfiles.count(s)==1){
+                            string ye='#'+s;
+                            n_bytes=send(i, ye.c_str(), strlen(ye.c_str()), 0);
+
+                        }else{
+                            string ye="%"+s;
+                            n_bytes=send(i, ye.c_str(), strlen(ye.c_str()), 0);
+                        }
+                    }else if(s[0]=='#'){
+                        // cout<<"Found "<<s<<" "<<IDs[i]<<endl;
+                        s.erase(0,1);
+                        filemap[s]=min(filemap[s],IDs[i]);
+                        count--;
+                        if(count==0){
+                            break;
+                        }
+                    }else if(s[0]=='%'){
+                        s.erase(0,1);
+                        count--;
+                        if(count==0){
+                            break;
+                        }
+                    }else if(s[0]=='&'){
+                        // cout<<s<<endl;
+                        confirm++;
+                        // cout<<crntfile<<" "<<count<<endl;
+                        // count--;
+                    }
+                }
+            }
+        }
+        if(count==0 || crntfile>=nfiles){
+            tick=0;
+            count=nbrs;
+            crntfile++;
+            // cout<<confirm<<" "<<crntfile<<endl;
+            if(confirm==nbrs && crntfile>nfiles){
+                count=0;
+                break;
+            }else if(crntfile==nfiles){
+                count=0;
+                // cout<<"here\n";
+                for(int i=0;i<nbrs;i++){
+                    string star="&"+to_string(id);
+                    n_bytes=send(sendfd[i], star.c_str(), strlen(star.c_str()), 0);
+                }
+                if(confirm==nbrs){
+                    break;
+                }
+            }else if(crntfile<nfiles){
+                for(int i=0;i<nbrs;i++){
+                    string filename='$'+files[crntfile];
+                    // cout<<filename<<endl;
+                    n_bytes=send(sendfd[i], filename.c_str(), strlen(filename.c_str()), 0);
+                    // cout<<nbytes<<endl;
                 }
             }
         }
@@ -160,5 +266,8 @@ int main(int argc, char *argv[]){
     for (auto it=filemap.begin(); it!=filemap.end();it++){
         if(it->second==INTMAX) cout<<"Found "<<it->first<<" at 0 with MD5 0 at depth 0"<<endl;
         else cout<<"Found "<<it->first<<" at "<<it->second<<" with MD5 0 at depth 1"<<endl;
+    }
+    while(1){
+
     }
 }
