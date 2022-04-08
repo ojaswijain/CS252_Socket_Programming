@@ -11,99 +11,6 @@
 // #include <thread>
 int INTMAX=1000000007;
 using namespace std;
-typedef unsigned char BYTE;
-
-static const std::string base64_chars =
-             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-             "abcdefghijklmnopqrstuvwxyz"
-             "0123456789+/";
-
-
-static inline bool is_base64(BYTE c) {
-  return (isalnum(c) || (c == '+') || (c == '/'));
-}
-
-std::string base64_encode(BYTE const* buf, unsigned int bufLen) {
-  std::string ret;
-  int i = 0;
-  int j = 0;
-  BYTE char_array_3[3];
-  BYTE char_array_4[4];
-
-  while (bufLen--) {
-    char_array_3[i++] = *(buf++);
-    if (i == 3) {
-      char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-      char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-      char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-      char_array_4[3] = char_array_3[2] & 0x3f;
-
-      for(i = 0; (i <4) ; i++)
-        ret += base64_chars[char_array_4[i]];
-      i = 0;
-    }
-  }
-
-  if (i)
-  {
-    for(j = i; j < 3; j++)
-      char_array_3[j] = '\0';
-
-    char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-    char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-    char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-    char_array_4[3] = char_array_3[2] & 0x3f;
-
-    for (j = 0; (j < i + 1); j++)
-      ret += base64_chars[char_array_4[j]];
-
-    while((i++ < 3))
-      ret += '=';
-  }
-
-  return ret;
-}
-
-std::vector<BYTE> base64_decode(std::string const& encoded_string) {
-  int in_len = encoded_string.size();
-  int i = 0;
-  int j = 0;
-  int in_ = 0;
-  BYTE char_array_4[4], char_array_3[3];
-  std::vector<BYTE> ret;
-
-  while (in_len-- && ( encoded_string[in_] != '=') && is_base64(encoded_string[in_])) {
-    char_array_4[i++] = encoded_string[in_]; in_++;
-    if (i ==4) {
-      for (i = 0; i <4; i++)
-        char_array_4[i] = base64_chars.find(char_array_4[i]);
-
-      char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-      char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
-      char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
-
-      for (i = 0; (i < 3); i++)
-          ret.push_back(char_array_3[i]);
-      i = 0;
-    }
-  }
-
-  if (i) {
-    for (j = i; j <4; j++)
-      char_array_4[j] = 0;
-
-    for (j = 0; j <4; j++)
-      char_array_4[j] = base64_chars.find(char_array_4[j]);
-
-    char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-    char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
-    char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
-
-    for (j = 0; (j < i - 1); j++) ret.push_back(char_array_3[j]);
-  }
-
-  return ret;
-}
 
 int main(int argc, char *argv[]){
     int sno,id,myport,nbrs;
@@ -156,7 +63,7 @@ int main(int argc, char *argv[]){
     fd_set master,read_fds;
     int fdmax,nbytes,n_bytes;
     //change buffer size
-    char buf[1024];
+    char buf[1025];
     FD_ZERO(&master);
     FD_ZERO(&read_fds);
     FD_SET(recfd, &master);
@@ -226,7 +133,7 @@ int main(int argc, char *argv[]){
                     }
                     else{ 
                         string s=buf;
-                        memset( buf, '\0', sizeof(char)*1024 );
+                        memset( buf, '\0', sizeof(char)*1025 );
                         if(s[0]=='&'){
                             // cout<<s<<endl;
                             s.erase(0,1);
@@ -248,7 +155,7 @@ int main(int argc, char *argv[]){
         if(connects.size()>=nbrs) break;
     }
     // cout<<"here\n";
-    memset( buf, '\0', sizeof(char)*1024 );
+    memset( buf, '\0', sizeof(char)*1025);
     int crntfile=0;
     count=nbrs;
     for(int i=0;i<nbrs;i++){
@@ -292,7 +199,7 @@ int main(int argc, char *argv[]){
                 else{ 
                     string s=buf;
                     // cout<<s<<endl;
-                    memset( buf, '\0', sizeof(char)*1024 );
+                    memset( buf, '\0', sizeof(char)*1025 );
                     if(s[0]=='$'){
                         // cout<<s<<endl;
                         s.erase(0,1);
@@ -387,7 +294,7 @@ int main(int argc, char *argv[]){
         }
         for(int i=0;i<=fdmax;i++){
             if (FD_ISSET(i,&read_fds)){
-                nbytes=recv(i, buf, sizeof(buf), 0);
+                nbytes=recv(i, buf,1024, 0);
                 if (nbytes == 0) {
                     // printf("selectserver: socket %d hung up\n", i);
                     FD_CLR(i,&master);
@@ -397,8 +304,9 @@ int main(int argc, char *argv[]){
                     perror("recv");
                 }
                 else{ 
+                    buf[1024]='\0';
                     string s=buf;
-                    memset( buf, '\0', sizeof(char)*1024 );
+                    memset( buf, '\0', sizeof(char)*1025 );
                     if(s[0]=='$'){
                         s.erase(0,1);
                         FILE *picture;
@@ -406,41 +314,39 @@ int main(int argc, char *argv[]){
                         fseek(picture, 0, SEEK_SET);
                         printf("Sending Picture as Byte Array\n");
                         unsigned char send_buffer[1024];
+                        memset( send_buffer, '\0', sizeof(char)*1024 );
                         while(!feof(picture)){
                             fread(send_buffer, 1, sizeof(send_buffer), picture);
                             n_bytes=send(i, send_buffer,1024, 0);
                             memset( send_buffer, '\0', sizeof(char)*1024 );
+                            // cout<<n_bytes<<endl;
                         }
                         fclose(picture);
                     }else{
                         string name =*((port_files[i]).begin());
-                        //FILE *picture = fopen(name.c_str(), "w");
-                        //fprintf(picture,s.c_str());
-                        cout<<s;
-                        // cout<<nbytes<<endl;
-                        while(recv(i, buf, sizeof(buf), 0)>0){
-                            //cout<<nbytes<<endl;
-                            //fprintf(picture,buf);
-                            cout<<buf;
+                        ofstream f;
+                        f.open(name);
+                        f<<s<<flush;
+                        // cout<<s<<flush;
+                        while(recv(i, buf, 1024, 0)>0){
+                            cout<<".";
+                            buf[1024]='\0';
+                            s=buf;
+                            // cout<<s<<flush;
+                            f<<s<<flush;
                             memset( buf, '\0', sizeof(buf));
                         }
-                        //fclose(picture);
+                        cout<<endl<<"$";
+                        // f.close();
                         port_files[i].erase(name);
                         if(!port_files[i].empty()){
                             name=*((port_files[i]).begin());
                             string filename='$'+name;
                             n_bytes=send(i, filename.c_str(), strlen(filename.c_str()), 0);
                         }
-                        // foundfiles--;
-                        // if(foundfiles==0){
-                        //     break;
-                        // }
                     }
                 }
             }
         }
-        // if(foundfiles==0){
-        //     break;
-        // }
     }
 }
