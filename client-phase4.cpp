@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <bits/stdc++.h>
+#include <chrono>
 // #include <thread>
 int INTMAX=1000000007;
 using namespace std;
@@ -214,7 +215,7 @@ int main(int argc, char *argv[]){
                         // cout<<"Found "<<s<<" "<<IDs[i]<<endl;
                         s.erase(0,1);
                         // filemap[s]=min(filemap[s],IDs[i]);
-                        filemap[s]=min(filemap[s],i);
+                        filemap[s]=min(filemap[s],IDs[i]);
                         count--;
                         if(count==0){
                             break;
@@ -260,10 +261,6 @@ int main(int argc, char *argv[]){
             }
         }
     }
-    // for (auto it=filemap.begin(); it!=filemap.end();it++){
-    //     // if(it->second==INTMAX) cout<<"Found "<<it->first<<" at 0 with MD5 0 at depth 0"<<endl;
-    //     if(it->second!=INTMAX) cout<<"Found "<<it->first<<" at "<<IDs[it->second]<<" with MD5 0 at depth 1"<<endl;
-    // }
     for (auto it=nbrpending.begin(); it!=nbrpending.end();it++){
         string a=it->first;
         int p=a.find('^');
@@ -278,10 +275,12 @@ int main(int argc, char *argv[]){
     }
     int numleft=0;
     deque<string> filesleft;
+    map <string,int> d2files;
     for (auto it=filemap.begin(); it!=filemap.end();it++){
         if(it->second==INTMAX){
             numleft++;
             filesleft.push_back(it->first);
+            d2files[it->first]=INTMAX;
         }
     }
     if(numleft>0){
@@ -291,7 +290,7 @@ int main(int argc, char *argv[]){
         }
     }else{
         for (auto it=filemap.begin(); it!=filemap.end();it++){
-            cout<<"Found "<<it->first<<" at "<<IDs[it->second]<<" with MD5 0 at depth 1"<<endl;
+            cout<<"Found "<<it->first<<" at "<<it->second<<" with MD5 0 at depth 1"<<endl;
         }
     }
     count=nbrs;
@@ -386,7 +385,8 @@ int main(int argc, char *argv[]){
                             }
                         }
                         else{
-                            filemap[s1]=min(filemap[s1],stoi(s2));
+                            d2files[s1]=min(d2files[s1],stoi(s2));
+                            // filemap[s1]=min(filemap[s1],stoi(s2));
                             count--;
                             // cout<<count<<endl;
                         }
@@ -405,11 +405,9 @@ int main(int argc, char *argv[]){
                         }
                         else{
                             count--;
-                            // cout<<count<<endl;
                         }
                     }
                     if(count==0){
-                        // cout<<"here\n";
                         break;
                     }
                 }
@@ -420,14 +418,16 @@ int main(int argc, char *argv[]){
             numleft--;
             // cout<<numleft<<endl;
             if(numleft==0){
-                // cout<<"here\n";
                 for (auto it=filemap.begin(); it!=filemap.end();it++){
+                    if((it->second)!=INTMAX){
+                        cout<<"Found "<<it->first<<" at "<<it->second<<" with MD5 0 at depth 1"<<endl;
+                    }
+                }
+                for (auto it=d2files.begin(); it!=d2files.end();it++){
                     if(it->second==INTMAX){
                         cout<<"Found "<<it->first<<" at 0 with MD5 0 at depth 0"<<endl;
-                    }else if(IDs[it->second]==0){
-                        cout<<"Found "<<it->first<<" at "<<it->second<<" with MD5 0 at depth 2"<<endl;
                     }else{
-                        cout<<"Found "<<it->first<<" at "<<IDs[it->second]<<" with MD5 0 at depth 1"<<endl;
+                        cout<<"Found "<<it->first<<" at "<<it->second<<" with MD5 0 at depth 2"<<endl;
                     }
                 }
                 count--;
@@ -438,6 +438,14 @@ int main(int argc, char *argv[]){
                     n_bytes=send(sendfd[i], filename.c_str(), strlen(filename.c_str()), 0);
                 }
             }
+        }
+    }
+    int numd2=0;
+    for (auto it=d2files.begin(); it!=d2files.end();it++){
+        if(it->second==INTMAX){
+            d2files.erase(it->first);
+        }else{
+            numd2++;
         }
     }
 }
