@@ -63,7 +63,7 @@ int main(int argc, char *argv[]){
     fd_set master,read_fds;
     int fdmax,nbytes,n_bytes;
     //change buffer size
-    char buf[1025];
+    char buf[1024];
     FD_ZERO(&master);
     FD_ZERO(&read_fds);
     FD_SET(recfd, &master);
@@ -133,7 +133,8 @@ int main(int argc, char *argv[]){
                     }
                     else{ 
                         string s=buf;
-                        memset( buf, '\0', sizeof(char)*1025 );
+                        bzero(buf,sizeof(buf));
+                    // memset( buf, '\0', sizeof(char)*1025 );
                         if(s[0]=='&'){
                             // cout<<s<<endl;
                             s.erase(0,1);
@@ -155,7 +156,8 @@ int main(int argc, char *argv[]){
         if(connects.size()>=nbrs) break;
     }
     // cout<<"here\n";
-    memset( buf, '\0', sizeof(char)*1025);
+    bzero(buf,sizeof(buf));
+                    // memset( buf, '\0', sizeof(char)*1025 );
     int crntfile=0;
     count=nbrs;
     for(int i=0;i<nbrs;i++){
@@ -199,7 +201,8 @@ int main(int argc, char *argv[]){
                 else{ 
                     string s=buf;
                     // cout<<s<<endl;
-                    memset( buf, '\0', sizeof(char)*1025 );
+                    bzero(buf,sizeof(buf));
+                    // memset( buf, '\0', sizeof(char)*1025 );
                     if(s[0]=='$'){
                         // cout<<s<<endl;
                         s.erase(0,1);
@@ -304,40 +307,45 @@ int main(int argc, char *argv[]){
                     perror("recv");
                 }
                 else{ 
-                    buf[1024]='\0';
+                    // buf[1024]='\0';
                     string s=buf;
-                    memset( buf, '\0', sizeof(char)*1025 );
+                    // memset( buf, '\0', sizeof(char)*1025 );
                     if(s[0]=='$'){
                         s.erase(0,1);
                         FILE *picture;
-                        picture = fopen(("sample-data/files/client"+to_string(sno)+"/"+s).c_str(), "r");
+                        picture = fopen(("sample-data/files/client"+to_string(sno)+"/"+s).c_str(), "rb");
                         fseek(picture, 0, SEEK_SET);
                         printf("Sending Picture as Byte Array\n");
-                        unsigned char send_buffer[1024];
-                        memset( send_buffer, '\0', sizeof(char)*1024 );
-                        while(!feof(picture)){
-                            fread(send_buffer, 1, sizeof(send_buffer), picture);
-                            n_bytes=send(i, send_buffer,1024, 0);
-                            memset( send_buffer, '\0', sizeof(char)*1024 );
-                            // cout<<n_bytes<<endl;
+                        char send_buffer[1024]={0};
+                        int k;
+                        while ((k = fread(send_buffer, 1, sizeof(send_buffer), picture)) > 0){
+                            if (send(i, send_buffer, k, 0) == -1)
+                            {
+                                perror("[-]Error in sending file.");
+                                exit(1);
+                            }
+                            // cout<<send_buffer<<flush;
+                            bzero(send_buffer, 1024);
                         }
-                        fclose(picture);
+                        cout<<"here\n";
+                        // fclose(picture);
                     }else{
                         string name =*((port_files[i]).begin());
-                        ofstream f;
-                        f.open(name);
-                        f<<s<<flush;
-                        // cout<<s<<flush;
-                        while(recv(i, buf, 1024, 0)>0){
-                            cout<<".";
-                            buf[1024]='\0';
-                            s=buf;
+                        FILE* myfile=fopen(name.c_str(),"wb");
+                        // s=buf;
+                        int k=nbytes;
+                        while(k>0){
+                            cout<<k<<endl;
+                            // cout<<s.length()<<endl;
+                            // buf[1024]='\0';
+                            fwrite(buf,1,k,myfile);
+                            fflush(myfile);
                             // cout<<s<<flush;
-                            f<<s<<flush;
-                            memset( buf, '\0', sizeof(buf));
+                            bzero(buf,sizeof(buf));
+                            k=recv(i, buf, 1024, 0);
+                            // s=buf;
                         }
-                        cout<<endl<<"$";
-                        // f.close();
+                        fclose(myfile);
                         port_files[i].erase(name);
                         if(!port_files[i].empty()){
                             name=*((port_files[i]).begin());
@@ -345,6 +353,7 @@ int main(int argc, char *argv[]){
                             n_bytes=send(i, filename.c_str(), strlen(filename.c_str()), 0);
                         }
                     }
+                    bzero(buf,sizeof(buf));
                 }
             }
         }
