@@ -431,7 +431,7 @@ int main(int argc, char *argv[]){
                     }
                 }
                 count--;
-            }else{
+            }else if(numleft>0){
                 filesleft.pop_front();
                 for(int i=0;i<nbrs;i++){
                     string filename='!'+filesleft[0]+'^'+to_string(id);
