@@ -424,7 +424,7 @@ int main(int argc, char *argv[]){
                     }
                 }
                 for (auto it=d2files.begin(); it!=d2files.end();it++){
-                    if(it->second==INTMAX){
+                    if((it->second)==INTMAX){
                         cout<<"Found "<<it->first<<" at 0 with MD5 0 at depth 0"<<endl;
                     }else{
                         cout<<"Found "<<it->first<<" at "<<it->second<<" with MD5 0 at depth 2"<<endl;
