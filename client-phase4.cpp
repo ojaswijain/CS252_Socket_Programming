@@ -22,9 +22,11 @@ int main(int argc, char *argv[]){
         cin>>nos[i]>>ports[i];
     }
     int nfiles; cin>>nfiles;
-    vector<string> files(nfiles);
+    vector<string> files;
     for(int i=0;i<nfiles;i++){
-        cin>>files[i];
+        string x;
+        cin>>x;
+        files.push_back(x);
     }
     set <string> myfiles;
     set <string> connects;
@@ -175,7 +177,9 @@ int main(int argc, char *argv[]){
             n_bytes=send(soc, ye.c_str(), strlen(ye.c_str()), 0);
         }
     }
+    int l1confirm=0;
     map<string,int> nbrpending;
+    map<string,int> d2pending;
     FD_CLR(recfd,&master);
     for(;;){
         read_fds=master;
@@ -200,37 +204,71 @@ int main(int argc, char *argv[]){
                     string s=buf;
                     // cout<<s<<endl;
                     memset( buf, '\0', sizeof(char)*256 );
-                    if(s[0]=='$'){
-                        // cout<<s<<endl;
-                        s.erase(0,1);
-                        if(myfiles.count(s)==1){
-                            string ye='#'+s;
+                    vector<string> next,file,yes,no,conf,l1,d2;
+                    char k=s[0];
+                    s.erase(0,1);
+                    string const delims{"!$%&@#{"};
+                    size_t beg, pos = 0;
+                    while ((beg =s.find_first_not_of(delims, pos)) != string::npos){
+                        pos=s.find_first_of(delims, beg + 1);
+                        string temp=s.substr(beg, pos - beg);
+                        switch(k){
+                            case '@':
+                                d2.push_back(temp);
+                                break;
+                            case '{':
+                                l1.push_back(temp);
+                                break;
+                            case '!':
+                                next.push_back(temp);
+                                break;
+                            case '$':
+                                file.push_back(temp);
+                                break;
+                            case '%':
+                                no.push_back(temp);
+                                break;
+                            case '#':
+                                yes.push_back(temp);
+                                break;
+                            case '&':
+                                conf.push_back(temp);
+                                break;
+                            default:
+                                break;
+                        }
+                        k=s[pos];
+                    }
+                    for(auto a:d2){
+                        d2pending[a]=i;
+                    }
+                    for(auto a:next){
+                        nbrpending[a]=i;
+                    }
+                    for(auto a:file){
+                        if(myfiles.count(a)==1){
+                            string ye='#'+a;
                             n_bytes=send(i, ye.c_str(), strlen(ye.c_str()), 0);
-
                         }else{
-                            string ye="%"+s;
+                            string ye="%"+a;
                             n_bytes=send(i, ye.c_str(), strlen(ye.c_str()), 0);
                         }
-                    }else if(s[0]=='#'){
-                        // cout<<"Found "<<s<<" "<<IDs[i]<<endl;
-                        s.erase(0,1);
-                        // filemap[s]=min(filemap[s],IDs[i]);
-                        filemap[s]=min(filemap[s],IDs[i]);
+                    }
+                    for(auto a:yes){
+                        filemap[a]=min(filemap[a],IDs[i]);
                         count--;
-                        if(count==0){
-                            break;
-                        }
-                    }else if(s[0]=='%'){
-                        s.erase(0,1);
+                    }
+                    for(auto a:no){
                         count--;
-                        if(count==0){
-                            break;
-                        }
-                    }else if(s[0]=='&'){
+                    }
+                    for(auto a:conf){
                         confirm++;
-                    }else{
-                        s.erase(0,1);
-                        nbrpending[s]=i;
+                    }
+                    for(auto a:l1){
+                        l1confirm++;
+                    }
+                    if(count==0){
+                        break;
                     }
                 }
             }
@@ -239,13 +277,11 @@ int main(int argc, char *argv[]){
             tick=0;
             count=nbrs;
             crntfile++;
-            // cout<<confirm<<" "<<crntfile<<endl;
             if(confirm==nbrs && crntfile>nfiles){
                 count=0;
                 break;
             }else if(crntfile==nfiles){
                 count=0;
-                // cout<<"here\n";
                 for(int i=0;i<nbrs;i++){
                     string star="&"+to_string(id);
                     n_bytes=send(sendfd[i], star.c_str(), strlen(star.c_str()), 0);
@@ -261,26 +297,51 @@ int main(int argc, char *argv[]){
             }
         }
     }
-    for (auto it=nbrpending.begin(); it!=nbrpending.end();it++){
+    int l2confirm=0;
+    int numleft=0;
+    deque<string> filesleft;
+    map <string,pair<int,int>> d2files;
+    map<string,pair<string,int>> nbrd2files;
+    for(auto it=d2pending.begin();it!=d2pending.end();it++){
         string a=it->first;
         int p=a.find('^');
         string s1=a.substr(0,p);
         string s2=a.substr(p+1,a.length());
-        string filename='@'+it->first;
+        if(myfiles.count(s1)==1){
+            string ye=')'+a+"^"+to_string(id)+"^"+to_string(myport);
+            n_bytes=send(it->second, ye.c_str(), strlen(ye.c_str()), 0);
+        }else{
+            string ye="("+a;
+            n_bytes=send(it->second, ye.c_str(), strlen(ye.c_str()), 0);
+        }  
+    }
+    for (auto it=nbrpending.begin(); it!=nbrpending.end();it++){
+        string a=it->first;
+        tick=false;
+        int p=a.find('^');
+        string s1=a.substr(0,p);
+        string s2=a.substr(p+1,a.length());
+        string filename='@'+a;
         for(int i=0;i<nbrs;i++){
             if(IDs[sendfd[i]]!=stoi(s2)){
+                tick=true;
                 n_bytes=send(sendfd[i], filename.c_str(), strlen(filename.c_str()), 0);
             }
         }
+        if(!tick){
+            string ye="("+a;
+            n_bytes=send(it->second, ye.c_str(), strlen(ye.c_str()), 0);
+        }else{
+            // cout<<"first "<<a<<endl;
+            nbrd2files[a]=make_pair(to_string(INT_MAX),0);
+        }
     }
-    int numleft=0;
-    deque<string> filesleft;
-    map <string,int> d2files;
     for (auto it=filemap.begin(); it!=filemap.end();it++){
         if(it->second==INTMAX){
             numleft++;
             filesleft.push_back(it->first);
-            d2files[it->first]=INTMAX;
+            d2files[it->first].first=INTMAX;
+            d2files[it->first].second=0;
         }
     }
     if(numleft>0){
@@ -289,12 +350,13 @@ int main(int argc, char *argv[]){
             n_bytes=send(sendfd[i], filename.c_str(), strlen(filename.c_str()), 0);
         }
     }else{
-        for (auto it=filemap.begin(); it!=filemap.end();it++){
-            cout<<"Found "<<it->first<<" at "<<it->second<<" with MD5 0 at depth 1"<<endl;
+        for(int i=0; i<nbrs;i++){
+            string a="{"+to_string(id);
+            n_bytes=send(sendfd[i],a.c_str(), strlen(a.c_str()), 0);
         }
+        numleft--;
     }
     count=nbrs;
-    // cout<<numleft<<endl;
     for(;;){
         read_fds=master;
         if(select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1){
@@ -315,10 +377,10 @@ int main(int argc, char *argv[]){
                     string s=buf;
                     // cout<<s<<endl;
                     memset( buf, '\0', sizeof(char)*256 );
-                    vector<string> d1,d2,yes,no;
+                    vector<string> d1,d2,yes,no,l1,l2;
                     char k=s[0];
                     s.erase(0,1);
-                    string const delims{"!@()"};
+                    string const delims{"!@(){}"};
                     size_t beg, pos = 0;
                     while ((beg =s.find_first_not_of(delims, pos)) != string::npos){
                         pos=s.find_first_of(delims, beg + 1);
@@ -335,6 +397,12 @@ int main(int argc, char *argv[]){
                                 break;
                             case '(':
                                 no.push_back(temp);
+                                break;
+                            case '{': 
+                                l1.push_back(temp);
+                                break;
+                            case '}':
+                                l2.push_back(temp);
                                 break;
                             default:
                                 break;
@@ -358,6 +426,9 @@ int main(int argc, char *argv[]){
                         if(!tick){
                             string ye="("+a;
                             n_bytes=send(i, ye.c_str(), strlen(ye.c_str()), 0);
+                        }else{
+                            // cout<<"first "<<a<<endl;
+                            nbrd2files[a]=make_pair(to_string(INT_MAX),0);
                         }
                     }
                     for(auto a:d2){
@@ -365,7 +436,7 @@ int main(int argc, char *argv[]){
                         s1=a.substr(0,p);
                         s2=a.substr(p+1,a.length());
                         if(myfiles.count(s1)==1){
-                            string ye=')'+a;
+                            string ye=')'+a+"^"+to_string(id)+"^"+to_string(myport);
                             n_bytes=send(i, ye.c_str(), strlen(ye.c_str()), 0);
                         }else{
                             string ye="("+a;
@@ -376,19 +447,35 @@ int main(int argc, char *argv[]){
                         p=a.find('^');
                         s1=a.substr(0,p);
                         s2=a.substr(p+1,a.length());
+                        int q=s2.find('^');
+                        // cout<<q<<" "<<s2.length()<<endl;
+                        string s3=s2.substr(0,q);
+                        string s4=s2.substr(q+1,s2.length());
+                        // cout<<s1<<" "<<s2<<" "<<s3<<" "<<s4<<endl;
                         string ye=')'+a;
                         if(stoi(s2)!=id){
-                            for(int i=0;i<nbrs;i++){
-                                if(IDs[sendfd[i]]==stoi(s2)){
-                                    n_bytes=send(sendfd[i],ye.c_str(), strlen(ye.c_str()), 0);
+                            // cout<<"second "<<s1+"^"+s3<<endl;
+                            if(stoi(nbrd2files[s1+"^"+s3].first)>stoi(s4)){
+                                nbrd2files[s1+"^"+s3].first=s4;
+                            }
+                            (nbrd2files[s1+"^"+s3].second)++;
+                            if((nbrd2files[s1+"^"+s3].second)==nbrs-1){
+                                for(int i=0;i<nbrs;i++){
+                                    if(IDs[sendfd[i]]==stoi(s2)){
+                                        n_bytes=send(sendfd[i],ye.c_str(), strlen(ye.c_str()), 0);
+                                    }
                                 }
                             }
                         }
                         else{
-                            d2files[s1]=min(d2files[s1],stoi(s2));
-                            // filemap[s1]=min(filemap[s1],stoi(s2));
+                            if(d2files[s1].first>stoi(s4)){
+                                int r=s4.find('^');
+                                string s5=s4.substr(0,r);
+                                string s6=s4.substr(r+1,s4.length());
+                                d2files[s1].first=stoi(s5);
+                                d2files[s1].second=stoi(s6);
+                            }
                             count--;
-                            // cout<<count<<endl;
                         }
                     }
                     for(auto a:no){
@@ -397,9 +484,12 @@ int main(int argc, char *argv[]){
                         s2=a.substr(p+1,a.length());
                         string ye='('+a;
                         if(stoi(s2)!=id){
-                            for(int i=0;i<nbrs;i++){
-                                if(IDs[sendfd[i]]==stoi(s2)){
-                                    n_bytes=send(sendfd[i],ye.c_str(), strlen(ye.c_str()), 0);
+                            (nbrd2files[a].second)++;
+                            if((nbrd2files[a].second)==nbrs-1){
+                                for(int i=0;i<nbrs;i++){
+                                    if(IDs[sendfd[i]]==stoi(s2)){
+                                        n_bytes=send(sendfd[i],ye.c_str(), strlen(ye.c_str()), 0);
+                                    }
                                 }
                             }
                         }
@@ -407,45 +497,58 @@ int main(int argc, char *argv[]){
                             count--;
                         }
                     }
+                    for(auto a:l1){
+                        l1confirm++;
+                    }
+                    for(auto a:l2){
+                        l2confirm++;
+                    }
                     if(count==0){
                         break;
                     }
                 }
             }
         }
-        if(count==0){
+        if(count==0 || numleft<=0){
             count=nbrs;
             numleft--;
-            // cout<<numleft<<endl;
+            if(l1confirm==nbrs){
+                for(int i=0; i<nbrs;i++){
+                    string a="}"+to_string(id);
+                    n_bytes=send(sendfd[i], a.c_str(), strlen(a.c_str()), 0);
+                }
+                l1confirm++;
+            }
             if(numleft==0){
-                for (auto it=filemap.begin(); it!=filemap.end();it++){
-                    if((it->second)!=INTMAX){
-                        cout<<"Found "<<it->first<<" at "<<it->second<<" with MD5 0 at depth 1"<<endl;
-                    }
+                for(int i=0; i<nbrs;i++){
+                    string a="{"+to_string(id);
+                    n_bytes=send(sendfd[i],a.c_str(), strlen(a.c_str()), 0);
                 }
-                for (auto it=d2files.begin(); it!=d2files.end();it++){
-                    if((it->second)==INTMAX){
-                        cout<<"Found "<<it->first<<" at 0 with MD5 0 at depth 0"<<endl;
-                    }else{
-                        cout<<"Found "<<it->first<<" at "<<it->second<<" with MD5 0 at depth 2"<<endl;
-                    }
-                }
-                count--;
-            }else if(numleft>0){
-                filesleft.pop_front();
-                for(int i=0;i<nbrs;i++){
-                    string filename='!'+filesleft[0]+'^'+to_string(id);
-                    n_bytes=send(sendfd[i], filename.c_str(), strlen(filename.c_str()), 0);
-                }
+                numleft--;
+            }
+            if(l2confirm==nbrs && numleft<0 && l1confirm>nbrs){
+                break;
             }
         }
     }
-    int numd2=0;
-    for (auto it=d2files.begin(); it!=d2files.end();it++){
-        if(it->second==INTMAX){
-            d2files.erase(it->first);
-        }else{
-            numd2++;
+    for (auto it=filemap.begin(); it!=filemap.end();it++){
+        if((it->second)!=INTMAX){
+            cout<<"Found "<<it->first<<" at "<<it->second<<" with MD5 0 at depth 1"<<endl;
         }
     }
+    for (auto it=d2files.begin(); it!=d2files.end();it++){
+        if(((it->second).first)==INTMAX){
+            cout<<"Found "<<it->first<<" at 0 with MD5 0 at depth 0"<<endl;
+        }else{
+            cout<<"Found "<<it->first<<" at "<<((it->second).first)<<" with MD5 0 at depth 2"<<endl;
+        }
+    }
+    // int numd2=0;
+    // for (auto it=d2files.begin(); it!=d2files.end();it++){
+    //     if(((it->second).first)==INTMAX){
+    //         d2files.erase(it->first);
+    //     }else{
+    //         numd2++;
+    //     }
+    // }
 }
