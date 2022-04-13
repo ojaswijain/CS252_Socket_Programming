@@ -1,3 +1,6 @@
+// sudo apt install libssl-dev
+// g++ client-phase3.cpp -lcrypto
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -5,12 +8,29 @@
 #include <cstdio>
 #include <iostream>
 #include <fstream>
+#include <openssl/md5.h>
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <bits/stdc++.h>
 // #include <thread>
 int INTMAX=1000000007;
 using namespace std;
+
+void calcMD5(string filename, unsigned char * result){
+    ifstream file(filename, ifstream::binary);
+    MD5_CTX md5Context;
+    MD5_Init(&md5Context);
+    char buf[1024 * 16];
+    while (file.good()){
+        file.read(buf, sizeof(buf));
+        MD5_Update(&md5Context, buf, file.gcount());
+    }
+    MD5_Final(result, &md5Context);
+}
+
+void printMD5(unsigned char * hash){
+    for(int i=0;i<MD5_DIGEST_LENGTH;i++) printf("%02x",hash[i]);
+}
 
 int main(int argc, char *argv[]){
     int sno,id,myport,nbrs;
